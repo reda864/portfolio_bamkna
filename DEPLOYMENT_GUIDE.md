@@ -51,7 +51,7 @@ git push origin main
    - **Region** : Frankfurt (ou celle la plus proche de votre base Neon)
    - **Branch** : `main`
    - **Runtime** : `Node`
-   - **Build Command** : `npm install && npm run build`
+   - **Build Command** : `npm install --include=dev && npm run build`
    - **Start Command** : `npm start`
    - **Instance Type** : `Free` (0$/mois)
 
