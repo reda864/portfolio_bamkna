@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand: #ff6b00;
+  --color-brand-dark: #e55d00;
+  --color-surface: #0d0d0d;
+  --color-surface-card: #1a1a1a;
+  --color-surface-elevated: #242424;
+  --color-muted: #888888;
+  --font-display: "Segoe UI", system-ui, sans-serif;
+  --font-body: "Segoe UI", system-ui, sans-serif;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-surface text-white antialiased;
+    font-family: var(--font-body);
+  }
+
+  ::selection {
+    @apply bg-brand/30 text-white;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-gradient-to-r from-brand to-orange-300 bg-clip-text text-transparent;
+  }
+
+  .section-padding {
+    @apply px-6 py-24 md:px-12 lg:px-20;
+  }
+
+  .glass {
+    @apply border border-white/10 bg-white/5 backdrop-blur-md;
+  }
+}
+
+/* Swiper overrides */
+.swiper-pagination-bullet {
+  background: #ff6b00 !important;
+  opacity: 0.4;
+}
+
+.swiper-pagination-bullet-active {
+  opacity: 1 !important;
+}
