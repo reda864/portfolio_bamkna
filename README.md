@@ -1,16 +1,56 @@
-# React + Vite
+# 🏀 BAAMAKNA 3X3 - Portfolio & CMS
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Portfolio officiel et système de gestion de contenu (CMS) pour l'équipe de Basketball 3x3 **BAAMAKNA 3X3** (Meknès, Maroc).
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🛠️ Stack Technique
 
-## React Compiler
+- **Frontend** : React 19, Vite, Tailwind CSS, Framer Motion, Lucide Icons, Swiper
+- **Backend** : Node.js, Express, JWT, Bcrypt
+- **Base de Données** : PostgreSQL Serverless sur **Neon** ([neon.tech](https://neon.tech))
+- **Hébergement & Déploiement** : **Render** ([render.com](https://render.com))
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the Oxlint configuration
+## 🚀 Démarrage Rapide en Local
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+### 1. Cloner le projet et installer les dépendances
+```bash
+git clone https://github.com/reda864/portfolio_bamkna.git
+cd portfolio_bamkna
+npm install
+```
+
+### 2. Configurer les variables d'environnement
+Créez un fichier `.env` à la racine (voir `.env.example`) :
+```env
+DATABASE_URL=postgresql://user:password@host/neondb?sslmode=require
+JWT_SECRET=votre_cle_secrete_jwt
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=admin
+PORT=5000
+```
+
+### 3. Lancer en mode développement
+```bash
+# Lancer le serveur backend
+npm run server
+
+# Dans un autre terminal, lancer le frontend Vite
+npm run dev
+```
+
+---
+
+## 🌐 Déploiement sur Render & Neon
+
+Consultez le guide complet détaillé dans [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md).
+
+### Résumé des étapes :
+1. **Neon** : Créez une base PostgreSQL gratuite sur [neon.tech](https://neon.tech) et copiez la chaîne `DATABASE_URL`.
+2. **Render** : Créez un **Web Service** connecté à votre dépôt GitHub.
+   - **Build Command** : `npm install && npm run build`
+   - **Start Command** : `npm start`
+   - **Environment Variables** : Ajoutez `DATABASE_URL`, `JWT_SECRET`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`.
+3. Cliquez sur **Deploy** ! L'application compilera le frontend, initialisera automatiquement les tables PostgreSQL et se mettra en ligne.

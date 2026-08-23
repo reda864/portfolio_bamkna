@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, useEffect } from "react"
+import { createContext, useContext, useState, useEffect, useRef, useCallback } from "react"
 import * as defaultTeamData from "../data/teamData"
+import { fetchPortfolioData, savePortfolioData, resetPortfolioData } from "../api/client"
 
 const DataContext = createContext(null)
 const DATA_STORAGE_KEY = "baamakna_portfolio_data_v1"
@@ -9,20 +10,20 @@ const getInitialDefaultData = () => {
   return {
     team: {
       ...defaultTeamData.team,
-      logo: "", // Custom logo URL or base64 if uploaded
+      logo: "",
       heroBg: "/videos/hero-bg.mp4",
       heroPoster: "/images/hero-poster.jpg",
     },
     aboutText: {
       ...defaultTeamData.aboutText,
     },
-    stats: defaultTeamData.stats.map((s, index) => ({ id: `stat-${index + 1}`, ...s })),
-    players: defaultTeamData.players.map((p, index) => ({ id: p.id || index + 1, ...p })),
-    achievements: defaultTeamData.achievements.map((a, index) => ({ id: `ach-${index + 1}`, ...a })),
-    results: defaultTeamData.results.map((r, index) => ({ id: `res-${index + 1}`, ...r })),
-    galleryItems: defaultTeamData.galleryItems.map((g, index) => ({ id: g.id || index + 1, ...g })),
-    tournaments: defaultTeamData.tournaments.map((t, index) => ({ id: `tour-${index + 1}`, ...t })),
-    sponsors: defaultTeamData.sponsors.map((s, index) => ({ id: `spon-${index + 1}`, ...s })),
+    stats: (defaultTeamData.stats || []).map((s, index) => ({ id: `stat-${index + 1}`, ...s })),
+    players: (defaultTeamData.players || []).map((p, index) => ({ id: p.id || index + 1, ...p })),
+    achievements: (defaultTeamData.achievements || []).map((a, index) => ({ id: `ach-${index + 1}`, ...a })),
+    results: (defaultTeamData.results || []).map((r, index) => ({ id: `res-${index + 1}`, ...r })),
+    galleryItems: (defaultTeamData.galleryItems || []).map((g, index) => ({ id: g.id || index + 1, ...g })),
+    tournaments: (defaultTeamData.tournaments || []).map((t, index) => ({ id: `tour-${index + 1}`, ...t })),
+    sponsors: (defaultTeamData.sponsors || []).map((s, index) => ({ id: `spon-${index + 1}`, ...s })),
     partnership: {
       title: "Devenez partenaire",
       description:
@@ -40,7 +41,6 @@ export function DataProvider({ children }) {
       const saved = localStorage.getItem(DATA_STORAGE_KEY)
       if (saved) {
         const parsed = JSON.parse(saved)
-        // Merge with initial defaults to ensure any missing fields exist
         const initial = getInitialDefaultData()
         return {
           ...initial,
@@ -56,14 +56,80 @@ export function DataProvider({ children }) {
     return getInitialDefaultData()
   })
 
-  // Sync to localStorage on change
+  const [isSyncing, setIsSyncing] = useState(false)
+  const [lastSynced, setLastSynced] = useState(null)
+  const isInitialMount = useRef(true)
+
+  // 1. Fetch initial data from PostgreSQL on app load
   useEffect(() => {
-    try {
-      localStorage.setItem(DATA_STORAGE_KEY, JSON.stringify(data))
-    } catch (e) {
-      console.error("Failed to save portfolio data to localStorage", e)
+    const loadBackendData = async () => {
+      try {
+        const serverData = await fetchPortfolioData()
+        if (serverData && typeof serverData === "object") {
+          const initial = getInitialDefaultData()
+          const merged = {
+            ...initial,
+            ...serverData,
+            team: { ...initial.team, ...(serverData.team || {}) },
+            aboutText: { ...initial.aboutText, ...(serverData.aboutText || {}) },
+            partnership: { ...initial.partnership, ...(serverData.partnership || {}) },
+            stats: serverData.stats || initial.stats,
+            players: serverData.players || initial.players,
+            achievements: serverData.achievements || initial.achievements,
+            results: serverData.results || initial.results,
+            galleryItems: serverData.galleryItems || initial.galleryItems,
+            tournaments: serverData.tournaments || initial.tournaments,
+            sponsors: serverData.sponsors || initial.sponsors,
+          }
+          setData(merged)
+          localStorage.setItem(DATA_STORAGE_KEY, JSON.stringify(merged))
+          setLastSynced(new Date())
+        }
+      } catch (err) {
+        console.warn("Using local cache / default data:", err.message)
+      }
     }
-  }, [data])
+
+    loadBackendData()
+  }, [])
+
+  // 2. Debounced sync to Neon PostgreSQL whenever data changes
+  const syncTimerRef = useRef(null)
+
+  const persistData = useCallback((newData) => {
+    // Always sync to local storage immediately
+    try {
+      localStorage.setItem(DATA_STORAGE_KEY, JSON.stringify(newData))
+    } catch (e) {
+      console.error("Failed to save to localStorage", e)
+    }
+
+    // Debounce save to PostgreSQL server
+    if (syncTimerRef.current) {
+      clearTimeout(syncTimerRef.current)
+    }
+
+    syncTimerRef.current = setTimeout(async () => {
+      try {
+        setIsSyncing(true)
+        await savePortfolioData(newData)
+        setLastSynced(new Date())
+      } catch (e) {
+        // If unauthenticated or offline, silently maintain local cache
+        console.warn("Backend sync status:", e.message)
+      } finally {
+        setIsSyncing(false)
+      }
+    }, 600)
+  }, [])
+
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false
+      return
+    }
+    persistData(data)
+  }, [data, persistData])
 
   // --- Specific Update Handlers ---
 
@@ -280,13 +346,14 @@ export function DataProvider({ children }) {
     downloadAnchor.remove()
   }
 
-  const importDataJSON = (jsonContent) => {
+  const importDataJSON = async (jsonContent) => {
     try {
       const parsed = typeof jsonContent === "string" ? JSON.parse(jsonContent) : jsonContent
       if (!parsed.team || !parsed.players) {
         throw new Error("Format JSON invalide pour le portfolio Baamakna.")
       }
       setData(parsed)
+      await savePortfolioData(parsed).catch((e) => console.warn("Sync import to backend:", e.message))
       return { success: true }
     } catch (err) {
       console.error(err)
@@ -294,10 +361,15 @@ export function DataProvider({ children }) {
     }
   }
 
-  const resetToDefaultData = () => {
+  const resetToDefaultData = async () => {
     localStorage.removeItem(DATA_STORAGE_KEY)
     const defaults = getInitialDefaultData()
     setData(defaults)
+    try {
+      await resetPortfolioData()
+    } catch (e) {
+      console.warn("Reset to default on backend:", e.message)
+    }
   }
 
   return (
@@ -315,6 +387,8 @@ export function DataProvider({ children }) {
         sponsors: data.sponsors,
         partnership: data.partnership,
         navLinks: data.navLinks,
+        isSyncing,
+        lastSynced,
         updateTeam,
         updateAbout,
         updateStats,

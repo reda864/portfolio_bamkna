@@ -6,12 +6,20 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "start": "node server/index.js",
+    "server": "node server/index.js",
     "lint": "oxlint",
     "preview": "vite preview"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
     "framer-motion": "^13.0.0",
+    "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.28.0",
+    "pg": "^8.23.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "swiper": "^14.0.7"

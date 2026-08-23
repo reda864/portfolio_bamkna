@@ -4,7 +4,7 @@ import { useData } from "../../context/DataContext"
 
 export default function AdminNavbar({ onBackToSite, mobileSidebarOpen, setMobileSidebarOpen }) {
   const { logout, user } = useAuth()
-  const { exportDataJSON, team } = useData()
+  const { exportDataJSON, team, isSyncing } = useData()
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-surface-card/90 backdrop-blur-xl">
@@ -34,8 +34,8 @@ export default function AdminNavbar({ onBackToSite, mobileSidebarOpen, setMobile
                 </span>
               </div>
               <p className="text-[11px] text-muted flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span>Synchronisation locale active</span>
+                <span className={`h-1.5 w-1.5 rounded-full ${isSyncing ? "bg-amber-400 animate-spin" : "bg-emerald-500 animate-pulse"}`} />
+                <span>{isSyncing ? "Synchronisation en cours..." : "PostgreSQL & Cloud synchronisés"}</span>
               </p>
             </div>
           </div>

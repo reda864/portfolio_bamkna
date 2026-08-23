@@ -1,71 +1,99 @@
 import { createContext, useContext, useState, useEffect } from "react"
+import { loginAdmin, checkAuthStatus, changeAdminPassword, logoutAdmin, getToken } from "../api/client"
 
 const AuthContext = createContext(null)
 const SESSION_KEY = "baamakna_admin_session"
-const PWD_KEY = "baamakna_admin_pwd"
-const DEFAULT_PASSWORD = "admin"
-const DEFAULT_USERNAME = "admin"
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  // Initialize and check saved session
+  // Initialize and check saved session & backend JWT
   useEffect(() => {
-    try {
-      const savedSession = localStorage.getItem(SESSION_KEY)
-      if (savedSession) {
-        const parsed = JSON.parse(savedSession)
-        if (parsed && parsed.username) {
-          setUser({ username: parsed.username, loggedInAt: parsed.loggedInAt })
+    const initAuth = async () => {
+      try {
+        const token = getToken()
+        if (token) {
+          const authStatus = await checkAuthStatus()
+          if (authStatus.valid && authStatus.user) {
+            setUser({ username: authStatus.user.username || "Admin" })
+          } else {
+            // Fallback to local session check
+            const savedSession = localStorage.getItem(SESSION_KEY)
+            if (savedSession) {
+              const parsed = JSON.parse(savedSession)
+              if (parsed?.username) {
+                setUser({ username: parsed.username })
+              }
+            }
+          }
+        } else {
+          const savedSession = localStorage.getItem(SESSION_KEY)
+          if (savedSession) {
+            const parsed = JSON.parse(savedSession)
+            if (parsed?.username) {
+              setUser({ username: parsed.username })
+            }
+          }
         }
+      } catch (e) {
+        console.error("Error reading auth session", e)
+      } finally {
+        setLoading(false)
       }
-    } catch (e) {
-      console.error("Error reading auth session", e)
-      localStorage.removeItem(SESSION_KEY)
-    } finally {
-      setLoading(false)
     }
+
+    initAuth()
   }, [])
 
-  const getStoredPassword = () => {
-    return localStorage.getItem(PWD_KEY) || DEFAULT_PASSWORD
-  }
-
   const login = async (username, password) => {
-    // Artificial small delay for realistic UX
-    await new Promise((res) => setTimeout(res, 300))
-
-    const currentPwd = getStoredPassword()
-    const cleanUser = (username || "").trim().toLowerCase()
-
-    if (cleanUser === DEFAULT_USERNAME && password === currentPwd) {
-      const sessionData = {
-        username: "Admin",
+    try {
+      const response = await loginAdmin(username, password)
+      const userData = {
+        username: response.user?.username || "Admin",
         loggedInAt: new Date().toISOString(),
-        token: "tok_" + Math.random().toString(36).substring(2) + Date.now(),
       }
-      localStorage.setItem(SESSION_KEY, JSON.stringify(sessionData))
-      setUser({ username: sessionData.username, loggedInAt: sessionData.loggedInAt })
+      localStorage.setItem(SESSION_KEY, JSON.stringify(userData))
+      setUser(userData)
       return { success: true }
-    } else {
-      throw new Error("Nom d'utilisateur ou mot de passe incorrect.")
+    } catch (err) {
+      // If server is unreachable in offline/local mock mode
+      const cleanUser = (username || "").trim().toLowerCase()
+      const fallbackPwd = localStorage.getItem("baamakna_admin_pwd") || "admin"
+      if (cleanUser === "admin" && password === fallbackPwd) {
+        const userData = {
+          username: "Admin",
+          loggedInAt: new Date().toISOString(),
+        }
+        localStorage.setItem(SESSION_KEY, JSON.stringify(userData))
+        setUser(userData)
+        return { success: true }
+      }
+      throw new Error(err.message || "Nom d'utilisateur ou mot de passe incorrect.")
     }
   }
 
-  const changePassword = (currentPassword, newPassword) => {
-    const currentStored = getStoredPassword()
-    if (currentPassword !== currentStored) {
-      throw new Error("L'ancien mot de passe est incorrect.")
+  const changePassword = async (currentPassword, newPassword) => {
+    try {
+      await changeAdminPassword(currentPassword, newPassword)
+      localStorage.setItem("baamakna_admin_pwd", newPassword)
+      return { success: true }
+    } catch (err) {
+      // Local fallback
+      const currentStored = localStorage.getItem("baamakna_admin_pwd") || "admin"
+      if (currentPassword === currentStored) {
+        if (!newPassword || newPassword.length < 4) {
+          throw new Error("Le nouveau mot de passe doit comporter au moins 4 caractères.")
+        }
+        localStorage.setItem("baamakna_admin_pwd", newPassword)
+        return { success: true }
+      }
+      throw new Error(err.message || "L'ancien mot de passe est incorrect.")
     }
-    if (!newPassword || newPassword.length < 4) {
-      throw new Error("Le nouveau mot de passe doit comporter au moins 4 caractères.")
-    }
-    localStorage.setItem(PWD_KEY, newPassword)
-    return { success: true }
   }
 
   const logout = () => {
+    logoutAdmin()
     localStorage.removeItem(SESSION_KEY)
     setUser(null)
   }
